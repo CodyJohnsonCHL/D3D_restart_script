@@ -30,13 +30,16 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--mapint", type=int, help="Map output interval (mapint) in seconds", dest="mapint"
+    "--mapint",
+    type=int,
+    help="Map output interval (MapInterval) in seconds",
+    dest="mapint",
 )
 
 parser.add_argument(
     "--rstint",
     type=int,
-    help="restart file interval (rstint) in seconds",
+    help="restart file interval (RstInterval) in seconds",
     dest="rstint",
 )
 
@@ -51,7 +54,7 @@ mapint = args.mapint
 rstint = args.rstint
 
 # move output dirs
-# shutil.move(run_output, store_prev)
+shutil.move(run_output, store_prev)
 
 # get run specific info
 run_dir = Path.cwd()
@@ -64,7 +67,7 @@ dtf = dt0 + 8
 
 # get latest restart file
 all_timestamps = []
-all_restart_files = run_output.glob(f"{model_name}_*_rst.nc")
+all_restart_files = store_prev.glob(f"{model_name}_*_rst.nc")
 for restart_file in all_restart_files:
     timestamp = dt.datetime.strptime(restart_file.stem[dt0:dtf], "%Y%m%d")
     all_timestamps.append(timestamp)
@@ -129,11 +132,11 @@ mdu_path.write_text(mdu_text)
 # make changes to partitioned mdus
 for n in range(subdomains):
     mdu = f"{model_name}_{n:04d}.mdu"
-    restart = run_output.stem + "/" f"{model_name}_{n:04d}_{tstr}_000000_rst.nc"
-    print("working on...")
-    print(mdu)
-    print(restart)
-    print("")
+    restart = store_prev.stem + "/" f"{model_name}_{n:04d}_{tstr}_000000_rst.nc"
+    print(f"working on...\n{mdu}")
+    print(f"Tlfsmo      --> 0 s")
+    print(f"RestartFile --> {restart}")
+    print(f"TStop       --> {tstop}")
 
     text_to_replace_2 = f"RestartFile                       = {restart}\n"
 
@@ -145,8 +148,12 @@ for n in range(subdomains):
     mdu_text = re.sub(text_to_search_4, text_to_replace_4, mdu_text)
 
     if mapint:
+        print(f"MapInterval --> {mapint} s")
         mdu_text = re.sub(text_to_search_5, text_to_replace_5, mdu_text)
     if rstint:
+        print(f"RstInterval --> {rstint} s")
         mdu_text = re.sub(text_to_search_6, text_to_replace_6, mdu_text)
+
+    print("")
 
     mdu_path.write_text(mdu_text)
