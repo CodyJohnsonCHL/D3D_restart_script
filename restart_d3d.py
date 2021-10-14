@@ -17,7 +17,7 @@ parser.add_argument(
     "--run_output",
     default="./output",
     type=Path,
-    help="directory containing restart files (defult = output)",
+    help="directory containing restart files (default = output)",
     dest="run_output",
 )
 
@@ -25,7 +25,7 @@ parser.add_argument(
     "--store_prev",
     default="./output_prev",
     type=Path,
-    help="directory name to store previous run's output",
+    help="directory name to store previous run's output (default = output_prev)",
     dest="store_prev",
 )
 
