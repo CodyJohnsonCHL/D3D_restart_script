@@ -3,7 +3,7 @@
 import argparse
 import datetime as dt
 import re
-import sys
+import shutil
 from pathlib import Path
 
 # argument parser
@@ -21,11 +21,10 @@ parser.add_argument(
     dest="run_output",
 )
 
-
 parser.add_argument(
     "--store_prev",
+    default="./output_prev",
     type=Path,
-    required=True,
     help="directory name to store previous run's output",
     dest="store_prev",
 )
@@ -46,16 +45,18 @@ args = parser.parse_args()
 mdu = args.mdu
 run_output = args.run_output
 store_prev = args.store_prev
+tstop = args.tstop
 
 mapint = args.mapint
 rstint = args.rstint
 
-tstop = args.tstop
+# move output dirs
+# shutil.move(run_output, store_prev)
 
-# get directories
+# get run specific info
 run_dir = Path.cwd()
 model_name = mdu.stem
-subdomains = 36
+subdomains = len(list(run_dir.glob(f"{model_name}_*.mdu")))
 
 # timestamp indexes
 dt0 = len(model_name) + 6
@@ -63,7 +64,7 @@ dtf = dt0 + 8
 
 # get latest restart file
 all_timestamps = []
-all_restart_files = run_output.glob("*_rst.nc")
+all_restart_files = run_output.glob(f"{model_name}_*_rst.nc")
 for restart_file in all_restart_files:
     timestamp = dt.datetime.strptime(restart_file.stem[dt0:dtf], "%Y%m%d")
     all_timestamps.append(timestamp)
@@ -82,27 +83,33 @@ with open(orig_mdu) as f:
         if re.search("^RefDate.*", line):
             tref = dt.datetime.strptime(line.split()[2], "%Y%m%d")
 
+
 # get tstart
 tstart = tmax - tref
 tstart = int(tstart.total_seconds())
+
+
+# get tstop
+tstop = dt.datetime.strptime(tstop, "%Y-%m-%d")
+tstop = tstop - tref
+tstop = int(tstop.total_seconds())
+
 
 # replace text
 text_to_search_1 = r"TStart.*\n"
 text_to_search_2 = r"RestartFile.*\n"
 text_to_search_3 = r"Tlfsmo.*\n"
-text_to_search_4 = r"MapInterval.*\n"
-text_to_search_5 = r"ThinDamFile.*\n"
-text_to_search_6 = r"CrsFile.*\n"
-text_to_search_7 = r"TStop.*\n"
-text_to_search_8 = r"RstInterval.*\n"
+text_to_search_4 = r"TStop.*\n"
 
 text_to_replace_1 = f"TStart                            = {tstart}\n"
 text_to_replace_3 = f"Tlfsmo                            = 0\n"
-text_to_replace_4 = f"MapInterval                       = {mapint}\n"
-text_to_replace_5 = f"ThinDamFile                       = main_thd.pli\n"
-text_to_replace_6 = f"CrsFile                           = main_refined_crs.pli nested_BCs_crs.pli lower_MS_crs.pli\n"
-text_to_replace_7 = f"TStop                             = {tstop}\n"
-text_to_replace_8 = f"RstInterval                       = {rstint}\n"
+text_to_replace_4 = f"TStop                             = {tstop}\n"
+
+text_to_search_5 = r"MapInterval.*\n"
+text_to_search_6 = r"RstInterval.*\n"
+
+text_to_replace_5 = f"MapInterval                       = {mapint}\n"
+text_to_replace_6 = f"RstInterval                       = {rstint}\n"
 
 # make changes to original mdu (not sure if this matters)
 mdu_path = Path(orig_mdu)
@@ -110,10 +117,13 @@ mdu_text = mdu_path.read_text()
 mdu_text = re.sub(text_to_search_1, text_to_replace_1, mdu_text)
 mdu_text = re.sub(text_to_search_3, text_to_replace_3, mdu_text)
 mdu_text = re.sub(text_to_search_4, text_to_replace_4, mdu_text)
-mdu_text = re.sub(text_to_search_5, text_to_replace_5, mdu_text)
-mdu_text = re.sub(text_to_search_6, text_to_replace_6, mdu_text)
-mdu_text = re.sub(text_to_search_7, text_to_replace_7, mdu_text)
-mdu_text = re.sub(text_to_search_8, text_to_replace_8, mdu_text)
+
+if mapint:
+    mdu_text = re.sub(text_to_search_5, text_to_replace_5, mdu_text)
+
+if rstint:
+    mdu_text = re.sub(text_to_search_6, text_to_replace_6, mdu_text)
+
 mdu_path.write_text(mdu_text)
 
 # make changes to partitioned mdus
@@ -133,11 +143,10 @@ for n in range(subdomains):
     mdu_text = re.sub(text_to_search_2, text_to_replace_2, mdu_text)
     mdu_text = re.sub(text_to_search_3, text_to_replace_3, mdu_text)
     mdu_text = re.sub(text_to_search_4, text_to_replace_4, mdu_text)
-    mdu_text = re.sub(text_to_search_5, text_to_replace_5, mdu_text)
 
-    mdu_text = re.sub(text_to_search_6, text_to_replace_6, mdu_text)
+    if mapint:
+        mdu_text = re.sub(text_to_search_5, text_to_replace_5, mdu_text)
+    if rstint:
+        mdu_text = re.sub(text_to_search_6, text_to_replace_6, mdu_text)
 
-    mdu_text = re.sub(text_to_search_7, text_to_replace_7, mdu_text)
-
-    mdu_text = re.sub(text_to_search_8, text_to_replace_8, mdu_text)
     mdu_path.write_text(mdu_text)
